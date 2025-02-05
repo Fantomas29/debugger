@@ -9,6 +9,10 @@ public class TestDebugger {
             counter++;
             processIteration(i);
         }
+        for(int i = 0; i < 5; i++) {
+            counter++;
+            processIteration(i);
+        }
         System.out.println("Fin de methodWithLoop");
     }
 
@@ -19,8 +23,8 @@ public class TestDebugger {
     }
 
     private void helperMethod(int value) {
-        counter = counter + value;
-        System.out.println("Counter = " + counter);
+        value = counter + value;
+        System.out.println("value = " + value);
     }
 
     public static void main(String[] args) {

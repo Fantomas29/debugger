@@ -69,28 +69,44 @@ public class ScriptableDebugger {
                     System.out.println("Prepared class: " + classEvent.referenceType().name());
                     System.out.println("Class loader: " + classEvent.referenceType().classLoader());
                     System.out.println();
-                    setBreakPoint(debugClass.getName(), 27);
+                    setBreakPoint(debugClass.getName(), 31);
                     vm.resume();  // On reprend l'exécution après avoir posé le breakpoint
                 }
 
                 if (event instanceof BreakpointEvent || event instanceof StepEvent) {
                     if (event instanceof BreakpointEvent) {
                         BreakpointEvent bpEvent = (BreakpointEvent) event;
-                        System.out.println("Breakpoint reached");
-                        System.out.println("Thread: " + bpEvent.thread().name());
-                        System.out.println("Location: " + bpEvent.location().toString());
-                        System.out.println();
-
-                        // Vérifier si c'est un breakpoint "once" et le supprimer si c'est le cas
                         EventRequest request = bpEvent.request();
+
                         if (request instanceof BreakpointRequest) {
                             BreakpointRequest bpRequest = (BreakpointRequest) request;
-                            if ("once".equals(bpRequest.getProperty("type"))) {
+
+                            // Gérer les breakpoints de type count
+                            if ("count".equals(bpRequest.getProperty("type"))) {
+                                int currentCount = (Integer) bpRequest.getProperty("current_count");
+                                int targetCount = (Integer) bpRequest.getProperty("target_count");
+                                currentCount++;
+                                bpRequest.putProperty("current_count", currentCount);
+
+                                // Si on n'a pas encore atteint le count cible, on continue sans s'arrêter
+                                if (currentCount < targetCount) {
+                                    vm.resume();
+                                    continue;
+                                }
+                                // Une fois le count atteint, on s'arrête comme un breakpoint normal
+                            }
+                            // Gérer les breakpoints de type once
+                            else if ("once".equals(bpRequest.getProperty("type"))) {
                                 bpRequest.disable();  // Désactive d'abord
                                 vm.eventRequestManager().deleteEventRequest(bpRequest);  // Puis supprime
                                 System.out.println("Breakpoint unique supprimé");
                             }
                         }
+
+                        System.out.println("Breakpoint reached");
+                        System.out.println("Thread: " + bpEvent.thread().name());
+                        System.out.println("Location: " + bpEvent.location().toString());
+                        System.out.println();
                     } else {
                         System.out.println("Analyzing StepEvent:");
                         System.out.println("Location: " + ((StepEvent)event).location());
@@ -136,21 +152,6 @@ public class ScriptableDebugger {
                 Location location = targetClass.locationsOfLine(lineNumber).getFirst();
                 BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
                 bpReq.enable();
-            }
-        }
-    }
-
-    private void handleUserCommand(LocatableEvent event) {
-        while (true) {
-            System.out.print("Enter command: ");
-            String command = commandScanner.nextLine().trim().toLowerCase();
-
-            if (commandManager.isValidCommand(command)) {
-                commandManager.executeCommand(command, event);
-                break;
-            } else {
-                System.out.println("Unknown command: '" + command + "'");
-                System.out.println("Available commands: " + commandManager.getAvailableCommands());
             }
         }
     }

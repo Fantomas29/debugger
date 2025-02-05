@@ -41,13 +41,22 @@ public class TestDebugger {
 
 ### 1. Test des Breakpoints
 ```bash
-break core.TestDebugger.java 16   # Dans processIteration
+break core.TestDebugger.java 10   # Dans processIteration
 break-once core.TestDebugger.java 22   # Dans helperMethod
 breakpoints
-continue # jusqu'a ligne 16
+continue # jusqu'a ligne 10
 continue # jusqu'a ligne 22
-continue # jusqu'a ligne 16
+arguments
+continue # jusqu'a ligne 10
 breakpoints # Vérifie que le breakpoint-once est supprimé
+break-on-count core.TestDebugger.java 14 2
+continue # ligne 10 dernier tour
+receiver-variables
+continue # ligne 14 après 2 passages
+breakpoints
+receiver-variables
+continue
+receiver-variables
 ```
 
 
@@ -55,23 +64,23 @@ breakpoints # Vérifie que le breakpoint-once est supprimé
 ### 2. Test des Commandes d'Information
 À l'arrêt sur un breakpoint :
 ```bash
-frame  # Affiche la frame courante
-stack  # Montre la pile d'appels
-method  # Affiche les infos de la méthode courante
-breakpoints  # Liste les breakpoints
+frame
+stack
+method
+breakpoints
 ```
 
 ### 3. Test du Contrôle d'Exécution
 ```bash
-step  # Entre dans helperMethod
-step-over  # Exécute la ligne sans entrer dans la méthode
-continue  # Continue jusqu'au prochain breakpoint
+step
+step-over
+continue
 ```
 
 ### 4. Test des Variables et Contexte
 ```bash
-receiver  # Affiche l'objet courant
+receiver
 receiver-variables  # Montre counter
-temporaries  # Affiche les variables locales
-arguments  # Montre les arguments de la méthode
+temporaries
+arguments
 ```

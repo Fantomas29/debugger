@@ -49,7 +49,10 @@ public class BreakOnCountCommand implements DebugCommand {
                         BreakpointRequest bpReq = vm.eventRequestManager()
                                 .createBreakpointRequest(location);
 
-                        bpReq.addCountFilter(count);
+                        // On ajoute une propriété pour compter nous-mêmes
+                        bpReq.putProperty("type", "count");
+                        bpReq.putProperty("current_count", 0);
+                        bpReq.putProperty("target_count", count);
                         bpReq.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                         bpReq.enable();
 

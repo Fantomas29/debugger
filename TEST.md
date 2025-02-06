@@ -41,7 +41,19 @@ public class TestDebugger {
 
 ### 1. Test des Breakpoints
 ```bash
-break core.TestDebugger.java 10   # Dans processIteration
+break core.TestDebugger.java 10
+continue
+temporaries
+receiver-variables
+continue
+temporaries
+receiver-variables
+back
+temporaries
+receiver-variables
+back
+temporaries
+receiver-variables
 break-once core.TestDebugger.java 22   # Dans helperMethod
 breakpoints
 continue # jusqu'a ligne 10

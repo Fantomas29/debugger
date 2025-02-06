@@ -16,6 +16,8 @@ import dbg.commands.object.ArgumentsCommand;
 import dbg.commands.object.ReceiverCommand;
 import dbg.commands.object.ReceiverVariablesCommand;
 import dbg.commands.object.SenderCommand;
+import dbg.commands.timetravel.StepBackCommand;
+import dbg.timetravel.StepByStepDebugger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,9 +30,12 @@ public class CommandManager {
     private final Map<String, CommandFactory> commandFactories;
     private final Map<String, BreakCommandFactory> breakCommandFactories;
     private final VirtualMachine vm;
+    private final StepByStepDebugger timeTravelDebugger;
 
-    public CommandManager(VirtualMachine vm) {
+
+    public CommandManager(VirtualMachine vm, StepByStepDebugger timeTravelDebugger) {
         this.vm = vm;
+        this.timeTravelDebugger = timeTravelDebugger; // Correction
         this.commandFactories = new HashMap<>();
         this.breakCommandFactories = new HashMap<>();
         registerCommands();
@@ -60,6 +65,11 @@ public class CommandManager {
                 new BreakOnCountCommand(vm, event, args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2])));
         breakCommandFactories.put("break-before-method", (vm, event, args) ->
                 new BreakBeforeMethodCommand(vm, args[0]));
+
+        commandFactories.put("back", (vm, event) -> {
+            timeTravelDebugger.recordStep(event);
+            return new StepBackCommand(timeTravelDebugger);
+        });
     }
 
     public Object executeCommand(String commandLine, LocatableEvent event) {
@@ -75,11 +85,11 @@ public class CommandManager {
                 }
             } else if (command.equals("break-on-count")) {
                 if (parts.length < 4) {
-                    System.out.println("Usage: " + command + " <fileName> <lineNumber> <count>");
+                    System.out.println("Usage: " + command + " <fileName (with package)> <lineNumber> <count>");
                     return null;
                 }
             } else if (parts.length < 3) {
-                System.out.println("Usage: " + command + " <fileName> <lineNumber>");
+                System.out.println("Usage: " + command + " <fileName (with package)> <lineNumber>");
                 return null;
             }
 
@@ -115,7 +125,8 @@ public class CommandManager {
     public boolean isControlCommand(String command) {
         return command.equals("continue") ||
                 command.equals("step") ||
-                command.equals("step-over");
+                command.equals("step-over") ||
+                command.equals("back");
     }
 
     public boolean isValidCommand(String command) {
@@ -126,4 +137,5 @@ public class CommandManager {
     public String getAvailableCommands() {
         return String.join(", ", getAllCommands());
     }
+
 }

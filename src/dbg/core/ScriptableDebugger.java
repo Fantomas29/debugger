@@ -9,6 +9,7 @@ import com.sun.jdi.event.*;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
+import dbg.timetravel.StepByStepDebugger;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -21,6 +22,8 @@ public class ScriptableDebugger {
     private VirtualMachine vm;
     private Scanner commandScanner;
     private CommandManager commandManager;
+    private StepByStepDebugger timeTravelDebugger;
+
 
     public ScriptableDebugger() {
         this.commandScanner = new Scanner(System.in);
@@ -38,16 +41,12 @@ public class ScriptableDebugger {
         this.debugClass = debuggeeClass;
         try {
             vm = connectAndLaunchVM();
-            commandManager = new CommandManager(vm);
+            timeTravelDebugger = new StepByStepDebugger(vm);
+            commandManager = new CommandManager(vm, timeTravelDebugger);
             enableClassPrepareRequest(vm);
             startDebugger();
-        } catch (IOException e) {
+        } catch (IOException | IllegalConnectorArgumentsException | VMStartException e) {
             e.printStackTrace();
-        } catch (IllegalConnectorArgumentsException e) {
-            e.printStackTrace();
-        } catch (VMStartException e) {
-            e.printStackTrace();
-            System.out.println(e.toString());
         } catch (VMDisconnectedException e) {
             System.out.println("Virtual Machine is disconnected: " + e.toString());
         } catch (Exception e) {
@@ -65,66 +64,106 @@ public class ScriptableDebugger {
                 }
 
                 if (event instanceof ClassPrepareEvent classEvent) {
-                    System.out.println("Analyzing ClassPrepareEvent:");
-                    System.out.println("Prepared class: " + classEvent.referenceType().name());
-                    System.out.println("Class loader: " + classEvent.referenceType().classLoader());
-                    System.out.println();
-                    setBreakPoint(debugClass.getName(), 31);
-                    vm.resume();  // On reprend l'exécution après avoir posé le breakpoint
+                    handleClassPrepareEvent(classEvent);
                 }
 
                 if (event instanceof BreakpointEvent || event instanceof StepEvent) {
-                    if (event instanceof BreakpointEvent) {
-                        BreakpointEvent bpEvent = (BreakpointEvent) event;
-                        EventRequest request = bpEvent.request();
+                    // Enregistrement de l'état pour le time-traveling
+                    LocatableEvent locatableEvent = (LocatableEvent) event;
+                    timeTravelDebugger.recordStep(locatableEvent);
 
-                        if (request instanceof BreakpointRequest) {
-                            BreakpointRequest bpRequest = (BreakpointRequest) request;
-
-                            // Gérer les breakpoints de type count
-                            if ("count".equals(bpRequest.getProperty("type"))) {
-                                int currentCount = (Integer) bpRequest.getProperty("current_count");
-                                int targetCount = (Integer) bpRequest.getProperty("target_count");
-                                currentCount++;
-                                bpRequest.putProperty("current_count", currentCount);
-
-                                // Si on n'a pas encore atteint le count cible, on continue sans s'arrêter
-                                if (currentCount < targetCount) {
-                                    vm.resume();
-                                    continue;
-                                }
-                                // Une fois le count atteint, on s'arrête comme un breakpoint normal
-                            }
-                            // Gérer les breakpoints de type once
-                            else if ("once".equals(bpRequest.getProperty("type"))) {
-                                bpRequest.disable();  // Désactive d'abord
-                                vm.eventRequestManager().deleteEventRequest(bpRequest);  // Puis supprime
-                                System.out.println("Breakpoint unique supprimé");
-                            }
-                        }
-
-                        System.out.println("Breakpoint reached");
-                        System.out.println("Thread: " + bpEvent.thread().name());
-                        System.out.println("Location: " + bpEvent.location().toString());
-                        System.out.println();
-                    } else {
-                        System.out.println("Analyzing StepEvent:");
-                        System.out.println("Location: " + ((StepEvent)event).location());
-                        ((StepEvent)event).request().disable();
-                    }
-
-                    // Boucle de commandes
-                    boolean shouldContinue = false;
-                    while (!shouldContinue) {
-                        String command = getNextCommand((LocatableEvent)event);
-                        shouldContinue = commandManager.isControlCommand(command);
-                    }
-                    continue;
+                    handleDebugEvent(event);
                 }
 
                 vm.resume();
             }
         }
+    }
+
+    private void handleClassPrepareEvent(ClassPrepareEvent event) throws AbsentInformationException {
+        System.out.println("Analyzing ClassPrepareEvent:");
+        System.out.println("Prepared class: " + event.referenceType().name());
+        System.out.println("Class loader: " + event.referenceType().classLoader());
+        System.out.println();
+        setBreakPoint(debugClass.getName(), 31);
+        vm.resume();
+    }
+
+    private void handleDebugEvent(Event event) throws InterruptedException {
+        if (event instanceof BreakpointEvent) {
+            handleBreakpointEvent((BreakpointEvent) event);
+        } else if (event instanceof StepEvent) {
+            handleStepEvent((StepEvent) event);
+        }
+
+        // Boucle de commandes
+        boolean shouldContinue = false;
+        while (!shouldContinue) {
+            String command = getNextCommand((LocatableEvent)event);
+            shouldContinue = commandManager.isControlCommand(command);
+        }
+    }
+
+    private void handleStepEvent(StepEvent event) {
+        System.out.println("Step Event:");
+        System.out.println("Location: " + event.location());
+        try {
+            EventRequest request = event.request();
+            if (request != null && request.isEnabled()) {
+                request.disable();
+                vm.eventRequestManager().deleteEventRequest(request);
+            }
+        } catch (VMDisconnectedException e) {
+            // Ignore if VM is already disconnected
+        }
+    }
+
+    private String getNextCommand(LocatableEvent event) {
+        System.out.print("Enter command: ");
+        String command = commandScanner.nextLine().trim().toLowerCase();
+
+        if (commandManager.isValidCommand(command)) {
+            Object result = commandManager.executeCommand(command, event);
+            if (result != null) {
+                System.out.println("Command result: " + result);
+            }
+            return command;
+        } else {
+            System.out.println("Unknown command: '" + command + "'");
+            System.out.println("Available commands: " + commandManager.getAvailableCommands());
+            return getNextCommand(event);  // récursion pour obtenir une commande valide
+        }
+    }
+
+    private void handleBreakpointEvent(BreakpointEvent event) {
+        EventRequest request = event.request();
+        if (request instanceof BreakpointRequest) {
+            BreakpointRequest bpRequest = (BreakpointRequest) request;
+
+            // Gérer les breakpoints de type count
+            if ("count".equals(bpRequest.getProperty("type"))) {
+                int currentCount = (Integer) bpRequest.getProperty("current_count");
+                int targetCount = (Integer) bpRequest.getProperty("target_count");
+                currentCount++;
+                bpRequest.putProperty("current_count", currentCount);
+
+                if (currentCount < targetCount) {
+                    vm.resume();
+                    return;
+                }
+            }
+            // Gérer les breakpoints de type once
+            else if ("once".equals(bpRequest.getProperty("type"))) {
+                bpRequest.disable();
+                vm.eventRequestManager().deleteEventRequest(bpRequest);
+                System.out.println("One-time breakpoint removed");
+            }
+        }
+
+        System.out.println("Breakpoint reached");
+        System.out.println("Thread: " + event.thread().name());
+        System.out.println("Location: " + event.location().toString());
+        System.out.println();
     }
 
     private void handleVMDisconnect() {
@@ -153,20 +192,6 @@ public class ScriptableDebugger {
                 BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
                 bpReq.enable();
             }
-        }
-    }
-
-    private String getNextCommand(LocatableEvent event) {
-        System.out.print("Enter command: ");
-        String command = commandScanner.nextLine().trim().toLowerCase();
-
-        if (commandManager.isValidCommand(command)) {
-            commandManager.executeCommand(command, event);
-            return command;
-        } else {
-            System.out.println("Unknown command: '" + command + "'");
-            System.out.println("Available commands: " + commandManager.getAvailableCommands());
-            return getNextCommand(event);  // récursion pour obtenir une commande valide
         }
     }
 }

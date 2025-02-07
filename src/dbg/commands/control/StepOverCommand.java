@@ -22,6 +22,7 @@ public class StepOverCommand implements DebugCommand {
                 StepRequest.STEP_LINE,
                 StepRequest.STEP_OVER
         );
+        stepRequest.putProperty("stepType", "STEP_OVER");
         stepRequest.enable();
         return stepRequest;
     }

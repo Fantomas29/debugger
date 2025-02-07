@@ -31,7 +31,7 @@ public class ScriptableDebugger {
     public void attachTo(Class<?> debugClass) throws Exception {
         this.debugClass = debugClass;
         if (stepBackManager != null) {
-            stepBackManager.clearHistory();  // Réinitialise l'historique au démarrage
+            stepBackManager.clearHistory();
         }
         startDebugee();
         eventLoop();
@@ -39,8 +39,6 @@ public class ScriptableDebugger {
 
     public void restartVM() {
         try {
-
-            // Nettoie l'ancienne VM
             if (vm != null) {
                 vm.dispose();
             }
@@ -48,19 +46,14 @@ public class ScriptableDebugger {
                 process.destroy();
             }
 
-            // Redémarre avec la nouvelle VM
             startDebugee();
-
-            // Assure que la nouvelle VM est bien connectée
-            Thread.sleep(100); // Petit délai pour la stabilité
-
+            Thread.sleep(100);
             eventLoop();
         } catch (Exception e) {
             System.out.println("[Debug] Error restarting VM: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
 
     private void startDebugee() throws Exception {
         LaunchingConnector connector = Bootstrap.virtualMachineManager().defaultConnector();
@@ -71,14 +64,32 @@ public class ScriptableDebugger {
         vm = connector.launch(arguments);
         process = vm.process();
 
-        // Réinitialise les managers avec la nouvelle VM
         stepBackManager = new StepBackManager(this, vm);
         commandManager = new CommandManager(vm, stepBackManager);
 
-        // Configure le ClassPrepareRequest
         ClassPrepareRequest classPrepareRequest = vm.eventRequestManager().createClassPrepareRequest();
         classPrepareRequest.addClassFilter(debugClass.getName());
         classPrepareRequest.enable();
+    }
+
+    private void setBreakPointStepBack(Class<?> debugClass) {
+        try {
+            StepBackManager.LocationInfo previousLocation = stepBackManager.getPreviousLocation();
+            if (previousLocation != null) {
+                for (ReferenceType refType : vm.allClasses()) {
+                    if (refType.name().equals(previousLocation.className)) {
+                        List<Location> locations = refType.locationsOfLine(previousLocation.lineNumber);
+                        if (!locations.isEmpty()) {
+                            Location location = locations.get(0);
+                            BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
+                            bpReq.enable();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("[Debug] Error setting step back breakpoint: " + e.getMessage());
+        }
     }
 
     private void eventLoop() throws Exception {
@@ -112,9 +123,12 @@ public class ScriptableDebugger {
     private void handleClassPrepareEvent(ClassPrepareEvent event) throws Exception {
         ClassType classType = (ClassType) event.referenceType();
         try {
-            Location location = classType.locationsOfLine(initialBreakpointLine).get(0);
-            BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
-            bpReq.enable();
+            List<Location> locations = classType.locationsOfLine(initialBreakpointLine);
+            if (!locations.isEmpty()) {
+                Location location = locations.get(0);
+                BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
+                bpReq.enable();
+            }
         } catch (Exception e) {
             System.out.println("[Debug] Error setting breakpoint: " + e.getMessage());
             throw e;
@@ -123,6 +137,9 @@ public class ScriptableDebugger {
 
     private void handleBreakpointEvent(BreakpointEvent event) {
         displayLocation(event);
+        if (stepBackManager.isReplaying) {
+            setBreakPointStepBack(event.getClass());
+        }
         promptLoop(event);
     }
 

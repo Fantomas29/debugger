@@ -2,6 +2,7 @@ package dbg.timetravel;
 
 import com.sun.jdi.*;
 import com.sun.jdi.event.LocatableEvent;
+import com.sun.jdi.request.StepRequest;
 import dbg.core.ScriptableDebugger;
 
 import java.util.ArrayList;
@@ -11,23 +12,30 @@ public class StepBackManager {
     private final ScriptableDebugger debugger;
     private static List<LocationInfo> executionHistory = new ArrayList<>();
     private static int historyPosition = -1;
-    private boolean isReplaying = false;
+    public boolean isReplaying = false;
     private int targetLine = -1;
 
-    private static class LocationInfo {
-        final String className;
+    public static class LocationInfo {
+       public final String className;
         final String methodName;
-        final int lineNumber;
+       public final int lineNumber;
+        final String type;  // "STEP", "STEP_OVER", ou "INITIAL"
 
-        LocationInfo(Location location) {
+        LocationInfo(Location location, String type) {
             this.className = location.declaringType().name();
             this.methodName = location.method().name();
             this.lineNumber = location.lineNumber();
+            this.type = type;
         }
 
         @Override
         public String toString() {
-            return String.format("%s.%s():%d", className, methodName, lineNumber);
+            return String.format("%s.%s():%d (%s)",
+                    className, methodName, lineNumber, type);
+        }
+
+        public boolean isMainClass() {
+            return className.contains("JDISimpleDebuggee");
         }
     }
 
@@ -40,27 +48,56 @@ public class StepBackManager {
 
     public void recordStep(LocatableEvent event) {
         if (event != null && event.location() != null) {
-            Location location = event.location();
-            LocationInfo currentLoc = new LocationInfo(location);
+            String stepType = "STEP";
+            if (event.request() instanceof StepRequest) {
+                StepRequest stepRequest = (StepRequest) event.request();
+                Object type = stepRequest.getProperty("stepType");
+                if (type != null && type.equals("STEP_OVER")) {
+                    stepType = "STEP_OVER";
+                }
+            }
 
+            Location location = event.location();
+            LocationInfo currentLoc = new LocationInfo(location, stepType);
+
+            // Ne pas enregistrer si nous sommes en train de rejouer
             if (isReplaying) {
-                if (location.lineNumber() == targetLine) {
+                if (location.lineNumber() == targetLine && currentLoc.isMainClass()) {
                     isReplaying = false;
                     targetLine = -1;
                 }
                 return;
             }
 
-            // Si nous ne sommes pas en mode replay, ajoutez à l'historique
             if (historyPosition < executionHistory.size() - 1) {
-                // Nous sommes revenus en arrière, donc supprimez l'historique futur
                 while (executionHistory.size() > historyPosition + 1) {
                     executionHistory.remove(executionHistory.size() - 1);
                 }
             }
-            executionHistory.add(currentLoc);
-            historyPosition = executionHistory.size();
+
+            // N'enregistrer que si c'est notre classe principale ou si c'est différent du dernier enregistrement
+            if (executionHistory.isEmpty() || currentLoc.isMainClass() ||
+                    !currentLoc.equals(executionHistory.get(historyPosition))) {
+                executionHistory.add(currentLoc);
+                historyPosition = executionHistory.size();
+            }
+
+            System.out.println("[Debug] Recording step at: " + currentLoc);
         }
+    }
+
+    public LocationInfo getPreviousLocation() {
+        if (historyPosition > 0 && historyPosition <= executionHistory.size()) {
+            // Trouver la dernière position dans notre classe principale
+            for (int i = historyPosition - 1; i >= 0; i--) {
+                LocationInfo loc = executionHistory.get(i);
+                if (loc.isMainClass()) {
+                    System.out.println("[Debug] Getting previous location: " + loc);
+                    return loc;
+                }
+            }
+        }
+        return null;
     }
 
     public void stepBack() {
@@ -70,11 +107,24 @@ public class StepBackManager {
         }
 
         try {
+            // Chercher la position précédente dans notre classe principale
+            LocationInfo targetLocation = null;
+            while (historyPosition > 0) {
+                historyPosition--;
+                LocationInfo loc = executionHistory.get(historyPosition);
+                if (loc.isMainClass()) {
+                    targetLocation = loc;
+                    break;
+                }
+            }
 
-            historyPosition = historyPosition-1;
-            LocationInfo targetLocation = executionHistory.get(historyPosition);
+            if (targetLocation == null) {
+                System.out.println("No previous position found in main class");
+                return;
+            }
+
+            System.out.println("[Debug] Stepping back to: " + targetLocation);
             targetLine = targetLocation.lineNumber;
-
             debugger.setInitialBreakpoint(targetLine);
             isReplaying = true;
 
@@ -86,7 +136,6 @@ public class StepBackManager {
             clearHistory();
         }
     }
-
 
     public void clearHistory() {
         executionHistory.clear();

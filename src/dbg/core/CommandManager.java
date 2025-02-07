@@ -8,17 +8,10 @@ import dbg.commands.breakpoint.*;
 import dbg.commands.control.ContinueCommand;
 import dbg.commands.control.StepCommand;
 import dbg.commands.control.StepOverCommand;
-import dbg.commands.info.FrameCommand;
-import dbg.commands.info.MethodCommand;
-import dbg.commands.info.StackCommand;
-import dbg.commands.info.TemporariesCommand;
-import dbg.commands.object.ArgumentsCommand;
-import dbg.commands.object.ReceiverCommand;
-import dbg.commands.object.ReceiverVariablesCommand;
-import dbg.commands.object.SenderCommand;
+import dbg.commands.info.*;
+import dbg.commands.object.*;
 import dbg.commands.timetravel.StepBackCommand;
 import dbg.timetravel.StepBackManager;
-import dbg.timetravel.StepByStepDebugger;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,15 +19,13 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.HashSet;
 
-// Mise à jour du CommandManager
 public class CommandManager {
     private final Map<String, CommandFactory> commandFactories;
     private final Map<String, BreakCommandFactory> breakCommandFactories;
     private final VirtualMachine vm;
-    private final StepBackManager stepBackManager; // Changé de StepByStepDebugger à StepBackManager
+    private final StepBackManager stepBackManager;
 
-
-    public CommandManager(VirtualMachine vm, StepBackManager stepBackManager) { // Mise à jour du constructeur
+    public CommandManager(VirtualMachine vm, StepBackManager stepBackManager) {
         this.vm = vm;
         this.stepBackManager = stepBackManager;
         this.commandFactories = new HashMap<>();
@@ -56,6 +47,7 @@ public class CommandManager {
         commandFactories.put("method", MethodCommand::new);
         commandFactories.put("arguments", ArgumentsCommand::new);
         commandFactories.put("breakpoints", BreakpointsCommand::new);
+        commandFactories.put("back", (vm, event) -> new StepBackCommand(stepBackManager, event));
 
         // Commandes de breakpoint
         breakCommandFactories.put("break", (vm, event, args) ->
@@ -66,14 +58,16 @@ public class CommandManager {
                 new BreakOnCountCommand(vm, event, args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2])));
         breakCommandFactories.put("break-before-method", (vm, event, args) ->
                 new BreakBeforeMethodCommand(vm, args[0]));
-
-        commandFactories.put("back", (vm, event) ->
-                new StepBackCommand(stepBackManager, event));
     }
 
     public Object executeCommand(String commandLine, LocatableEvent event) {
         String[] parts = commandLine.trim().split("\\s+");
         String command = parts[0].toLowerCase();
+
+        // Record step for all events except back command
+        if (!command.equals("back")) {
+            stepBackManager.recordStep(event);
+        }
 
         // Vérifier d'abord les commandes de breakpoint
         if (breakCommandFactories.containsKey(command)) {
@@ -84,11 +78,11 @@ public class CommandManager {
                 }
             } else if (command.equals("break-on-count")) {
                 if (parts.length < 4) {
-                    System.out.println("Usage: " + command + " <fileName (with package)> <lineNumber> <count>");
+                    System.out.println("Usage: " + command + " <fileName> <lineNumber> <count>");
                     return null;
                 }
             } else if (parts.length < 3) {
-                System.out.println("Usage: " + command + " <fileName (with package)> <lineNumber>");
+                System.out.println("Usage: " + command + " <fileName> <lineNumber>");
                 return null;
             }
 
@@ -98,7 +92,7 @@ public class CommandManager {
             return debugCommand.execute();
         }
 
-        // Sinon, traiter comme une commande standard
+        // Traiter comme une commande standard
         CommandFactory factory = commandFactories.get(command);
         if (factory != null) {
             DebugCommand debugCommand = factory.create(vm, event);
@@ -110,7 +104,7 @@ public class CommandManager {
             return result;
         }
 
-        System.out.println("Commande inconnue: '" + command + "'");
+        System.out.println("Commande inconnue: " + command);
         System.out.println("Commandes disponibles: " + String.join(", ", getAllCommands()));
         return null;
     }
@@ -133,8 +127,7 @@ public class CommandManager {
         return commandFactories.containsKey(cmd) || breakCommandFactories.containsKey(cmd);
     }
 
-    public String getAvailableCommands() {
+    public CharSequence getAvailableCommands() {
         return String.join(", ", getAllCommands());
     }
-
 }

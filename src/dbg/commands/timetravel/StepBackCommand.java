@@ -1,6 +1,6 @@
-// StepBackCommand.java
 package dbg.commands.timetravel;
 
+import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.event.LocatableEvent;
 import dbg.commands.interfaces.DebugCommand;
 import dbg.timetravel.StepBackManager;
@@ -16,12 +16,7 @@ public class StepBackCommand implements DebugCommand {
 
     @Override
     public Object execute() {
-        if (stepBackManager.isStepBackInProgress()) {
-            System.out.println("Step back already in progress");
-            return null;
-        }
-
-        stepBackManager.stepBack();
+        stepBackManager.stepBack(event);
         return null;
     }
 }

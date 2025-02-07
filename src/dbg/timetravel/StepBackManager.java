@@ -9,11 +9,9 @@ import java.util.List;
 
 public class StepBackManager {
     private final ScriptableDebugger debugger;
-    private final List<Location> executionHistory;
-    private static List<LocationInfo> persistentHistory = new ArrayList<>();
-    private int currentPosition;
+    private static List<LocationInfo> executionHistory = new ArrayList<>();
+    private static int historyPosition = -1;
     private boolean isReplaying = false;
-    private int replayTargetPosition = -1;  // Nouvelle variable pour suivre la position cible
 
     private static class LocationInfo {
         final String className;
@@ -34,12 +32,8 @@ public class StepBackManager {
 
     public StepBackManager(ScriptableDebugger debugger, VirtualMachine vm) {
         this.debugger = debugger;
-        this.executionHistory = new ArrayList<>();
-        if (persistentHistory.isEmpty()) {
-            this.currentPosition = -1;
-            this.isReplaying = false;
-        } else {
-            this.currentPosition = persistentHistory.size();
+        if (executionHistory.isEmpty()) {
+            historyPosition = -1;
         }
     }
 
@@ -48,58 +42,52 @@ public class StepBackManager {
             Location location = event.location();
             LocationInfo currentLoc = new LocationInfo(location);
 
-            if (isReplaying) {
-                // Si on est en mode replay, on vérifie si on a dépassé notre position cible
-                if (currentPosition > replayTargetPosition) {
-                    // On a dépassé la position cible, on commence à réenregistrer
-                    isReplaying = false;
-                    // On nettoie l'historique après la position actuelle
-                    while (persistentHistory.size() > currentPosition) {
-                        persistentHistory.remove(persistentHistory.size() - 1);
+            if (!isReplaying) {
+                // Si nous ne sommes pas en mode replay, ajoutez à l'historique
+                if (historyPosition < executionHistory.size() - 1) {
+                    // Nous sommes revenus en arrière, donc supprimez l'historique futur
+                    while (executionHistory.size() > historyPosition + 1) {
+                        executionHistory.remove(executionHistory.size() - 1);
                     }
-                    persistentHistory.add(currentLoc);
-                    currentPosition = persistentHistory.size();
-                    System.out.println("[Debug] Recording new step at line " + location.lineNumber());
                 }
-            } else {
-                persistentHistory.add(currentLoc);
-                currentPosition = persistentHistory.size();
-                System.out.println("[Debug] Recording step at line " + location.lineNumber());
+                executionHistory.add(currentLoc);
+                historyPosition = executionHistory.size() - 1;
+                System.out.println("[Debug] Recording step at line " + location.lineNumber() +
+                        " (position " + historyPosition + ")");
             }
         }
     }
 
     public void stepBack(LocatableEvent event) {
-        if (currentPosition <= 0) {
+        if (historyPosition <= 0) {
             System.out.println("Already at the beginning of execution");
             return;
         }
 
         try {
-            LocationInfo targetLocation = persistentHistory.get(currentPosition -1);
+            historyPosition--;
+            LocationInfo targetLocation = executionHistory.get(historyPosition);
 
             // Configure le point d'arrêt initial pour la nouvelle exécution
             debugger.setInitialBreakpoint(targetLocation.lineNumber);
 
-            // Met à jour la position courante et la cible
-            currentPosition--;
-            replayTargetPosition = currentPosition;
             isReplaying = true;
-
-            System.out.println("[Debug] Setting initial breakpoint at line " + targetLocation.lineNumber);
+            System.out.println("[Debug] Setting initial breakpoint at line " + targetLocation.lineNumber +
+                    " (going to position " + historyPosition + ")");
 
             debugger.restartVM();
 
         } catch (Exception e) {
             System.out.println("[Debug] Error in step back: " + e.getMessage());
             e.printStackTrace();
+            // En cas d'erreur, réinitialiser à un état cohérent
+            clearHistory();
         }
     }
 
     public void clearHistory() {
-        persistentHistory.clear();
-        currentPosition = -1;
+        executionHistory.clear();
+        historyPosition = -1;
         isReplaying = false;
-        replayTargetPosition = -1;
     }
 }

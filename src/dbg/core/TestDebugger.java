@@ -1,34 +1,34 @@
-package dbg.core;
+package dbg.core; // 1
 
-public class TestDebugger {
-    private int counter = 0;
+public class TestDebugger { // 3
+    private int counter = 0; // 4
 
-    public void methodWithLoop() {
-        System.out.println("Debut de methodWithLoop");
-        for(int i = 0; i < 3; i++) {
-            counter++;
-            processIteration(i);
-        }
-        for(int i = 0; i < 5; i++) {
-            counter++;
-            processIteration(i);
-        }
-        System.out.println("Fin de methodWithLoop");
-    }
+    public void methodWithLoop() { // 6
+        System.out.println("Debut de methodWithLoop"); // 7
+        for(int i = 0; i < 3; i++) { // 8
+            counter++; // 9
+            processIteration(i); // 10
+        } // 11
+        for(int i = 0; i < 5; i++) { // 12
+            counter++; // 13
+            processIteration(i); // 14
+        } // 15
+        System.out.println("Fin de methodWithLoop"); // 16
+    } // 17
 
-    private void processIteration(int value) {
-        String message = "Traitement de l'iteration " + value;
-        System.out.println(message);
-        helperMethod(value);
-    }
+    private void processIteration(int value) { // 19
+        String message = "Traitement de l'iteration " + value; // 20
+        System.out.println(message); // 21
+        helperMethod(value); // 22
+    } // 23
 
-    private void helperMethod(int value) {
-        value = counter + value;
-        System.out.println("value = " + value);
-    }
+    private void helperMethod(int value) { // 25
+        value = counter + value; // 26
+        System.out.println("value = " + value); // 27
+    } // 28
 
-    public static void main(String[] args) {
-        TestDebugger test = new TestDebugger();
-        test.methodWithLoop();
-    }
-}
+    public static void main(String[] args) { // 30
+        TestDebugger test = new TestDebugger(); // 31
+        test.methodWithLoop(); // 32
+    } // 33
+} // 34

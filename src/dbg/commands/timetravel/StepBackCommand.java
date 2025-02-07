@@ -1,19 +1,27 @@
+// StepBackCommand.java
 package dbg.commands.timetravel;
 
 import com.sun.jdi.event.LocatableEvent;
 import dbg.commands.interfaces.DebugCommand;
-import dbg.timetravel.StepByStepDebugger;
+import dbg.timetravel.StepBackManager;
 
 public class StepBackCommand implements DebugCommand {
-    private final StepByStepDebugger debugger;
+    private final StepBackManager stepBackManager;
+    private final LocatableEvent event;
 
-    public StepBackCommand(StepByStepDebugger debugger) {
-        this.debugger = debugger;
+    public StepBackCommand(StepBackManager stepBackManager, LocatableEvent event) {
+        this.stepBackManager = stepBackManager;
+        this.event = event;
     }
 
     @Override
     public Object execute() {
-        debugger.stepBack();
+        if (stepBackManager.isStepBackInProgress()) {
+            System.out.println("Step back already in progress");
+            return null;
+        }
+
+        stepBackManager.stepBack();
         return null;
     }
 }

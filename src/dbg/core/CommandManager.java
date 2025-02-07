@@ -17,6 +17,7 @@ import dbg.commands.object.ReceiverCommand;
 import dbg.commands.object.ReceiverVariablesCommand;
 import dbg.commands.object.SenderCommand;
 import dbg.commands.timetravel.StepBackCommand;
+import dbg.timetravel.StepBackManager;
 import dbg.timetravel.StepByStepDebugger;
 
 import java.util.HashMap;
@@ -30,12 +31,12 @@ public class CommandManager {
     private final Map<String, CommandFactory> commandFactories;
     private final Map<String, BreakCommandFactory> breakCommandFactories;
     private final VirtualMachine vm;
-    private final StepByStepDebugger timeTravelDebugger;
+    private final StepBackManager stepBackManager; // Changé de StepByStepDebugger à StepBackManager
 
 
-    public CommandManager(VirtualMachine vm, StepByStepDebugger timeTravelDebugger) {
+    public CommandManager(VirtualMachine vm, StepBackManager stepBackManager) { // Mise à jour du constructeur
         this.vm = vm;
-        this.timeTravelDebugger = timeTravelDebugger; // Correction
+        this.stepBackManager = stepBackManager;
         this.commandFactories = new HashMap<>();
         this.breakCommandFactories = new HashMap<>();
         registerCommands();
@@ -66,10 +67,8 @@ public class CommandManager {
         breakCommandFactories.put("break-before-method", (vm, event, args) ->
                 new BreakBeforeMethodCommand(vm, args[0]));
 
-        commandFactories.put("back", (vm, event) -> {
-            timeTravelDebugger.recordStep(event);
-            return new StepBackCommand(timeTravelDebugger);
-        });
+        commandFactories.put("back", (vm, event) ->
+                new StepBackCommand(stepBackManager, event));
     }
 
     public Object executeCommand(String commandLine, LocatableEvent event) {

@@ -39,8 +39,6 @@ public class ScriptableDebugger {
 
     public void restartVM() {
         try {
-            // Sauvegarde l'état
-            int breakpointLine = initialBreakpointLine;
 
             // Nettoie l'ancienne VM
             if (vm != null) {
@@ -117,7 +115,6 @@ public class ScriptableDebugger {
             Location location = classType.locationsOfLine(initialBreakpointLine).get(0);
             BreakpointRequest bpReq = vm.eventRequestManager().createBreakpointRequest(location);
             bpReq.enable();
-            System.out.println("[Debug] Set breakpoint at line " + initialBreakpointLine);
         } catch (Exception e) {
             System.out.println("[Debug] Error setting breakpoint: " + e.getMessage());
             throw e;

@@ -12,6 +12,7 @@ public class StepBackManager {
     private static List<LocationInfo> executionHistory = new ArrayList<>();
     private static int historyPosition = -1;
     private boolean isReplaying = false;
+    private int targetLine = -1;
 
     private static class LocationInfo {
         final String className;
@@ -42,52 +43,55 @@ public class StepBackManager {
             Location location = event.location();
             LocationInfo currentLoc = new LocationInfo(location);
 
-            if (!isReplaying) {
-                // Si nous ne sommes pas en mode replay, ajoutez à l'historique
-                if (historyPosition < executionHistory.size() - 1) {
-                    // Nous sommes revenus en arrière, donc supprimez l'historique futur
-                    while (executionHistory.size() > historyPosition + 1) {
-                        executionHistory.remove(executionHistory.size() - 1);
-                    }
+            if (isReplaying) {
+                if (location.lineNumber() == targetLine) {
+                    isReplaying = false;
+                    targetLine = -1;
                 }
-                executionHistory.add(currentLoc);
-                historyPosition = executionHistory.size() - 1;
-                System.out.println("[Debug] Recording step at line " + location.lineNumber() +
-                        " (position " + historyPosition + ")");
+                return;
             }
+
+            // Si nous ne sommes pas en mode replay, ajoutez à l'historique
+            if (historyPosition < executionHistory.size() - 1) {
+                // Nous sommes revenus en arrière, donc supprimez l'historique futur
+                while (executionHistory.size() > historyPosition + 1) {
+                    executionHistory.remove(executionHistory.size() - 1);
+                }
+            }
+            executionHistory.add(currentLoc);
+            historyPosition = executionHistory.size();
         }
     }
 
-    public void stepBack(LocatableEvent event) {
+    public void stepBack() {
         if (historyPosition <= 0) {
             System.out.println("Already at the beginning of execution");
             return;
         }
 
         try {
-            historyPosition--;
+
+            historyPosition = historyPosition-1;
             LocationInfo targetLocation = executionHistory.get(historyPosition);
+            targetLine = targetLocation.lineNumber;
 
-            // Configure le point d'arrêt initial pour la nouvelle exécution
-            debugger.setInitialBreakpoint(targetLocation.lineNumber);
-
+            debugger.setInitialBreakpoint(targetLine);
             isReplaying = true;
-            System.out.println("[Debug] Setting initial breakpoint at line " + targetLocation.lineNumber +
-                    " (going to position " + historyPosition + ")");
 
             debugger.restartVM();
 
         } catch (Exception e) {
             System.out.println("[Debug] Error in step back: " + e.getMessage());
             e.printStackTrace();
-            // En cas d'erreur, réinitialiser à un état cohérent
             clearHistory();
         }
     }
+
 
     public void clearHistory() {
         executionHistory.clear();
         historyPosition = -1;
         isReplaying = false;
+        targetLine = -1;
     }
 }

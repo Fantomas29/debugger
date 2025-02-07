@@ -16,7 +16,7 @@ public class StepBackCommand implements DebugCommand {
 
     @Override
     public Object execute() {
-        stepBackManager.stepBack(event);
+        stepBackManager.stepBack();
         return null;
     }
 }

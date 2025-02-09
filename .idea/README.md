@@ -40,6 +40,12 @@ public static void main(String[] args) {
 JTextField fileField = new JTextField("core.VotreClasse.java");  // Dans les méthodes showBreakpointDialog et showBreakOnCountDialog
 ```
 
+### Position du breakpoint initial
+Par défaut, le débogueur place le premier point d'arrêt à la ligne 9. Pour modifier cette ligne, dans `ScriptableDebugger.java`, modifiez la variable :
+```java
+private int initialBreakpointLine = 9;  // Changez cette valeur
+```
+
 ## Améliorations possibles
 
 1. Intégration du code source dans l'interface graphique pour une meilleure visualisation et interaction

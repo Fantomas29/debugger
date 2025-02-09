@@ -21,22 +21,22 @@ public class BreakpointsCommand implements DebugCommand {
         List<BreakpointRequest> breakpoints = vm.eventRequestManager().breakpointRequests();
 
         if (breakpoints.isEmpty()) {
-            System.out.println("No active breakpoints");
+            System.out.println("Aucun point d'arret actif");
             return null;
         }
 
-        System.out.println("=== Active Breakpoints ===");
+        System.out.println("=== Points d'arret actifs ===");
         for (BreakpointRequest bp : breakpoints) {
             Location loc = bp.location();
-            String status = bp.isEnabled() ? "enabled" : "disabled";
+            String status = bp.isEnabled() ? "activé" : "desactive";
             try {
-                System.out.printf("File: %s, Line: %d, Method: %s, Status: %s%n",
+                System.out.printf("Fichier : %s, Ligne : %d, Methode : %s, Statut : %s%n",
                         loc.sourcePath(),
                         loc.lineNumber(),
                         loc.method().name(),
                         status);
             } catch (AbsentInformationException e) {
-                System.out.printf("Location: %s, Status: %s%n",
+                System.out.printf("Emplacement : %s, Statut : %s%n",
                         loc,
                         status);
             }

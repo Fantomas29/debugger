@@ -32,7 +32,7 @@ public class ArgumentsCommand implements DebugCommand {
                 }
 
                 Map<LocalVariable, Value> argValues = new LinkedHashMap<>();
-                System.out.println("=== Arguments de la méthode ===");
+                System.out.println("=== Arguments de la methode ===");
                 for (LocalVariable arg : arguments) {
                     Value value = frame.getValue(arg);
                     argValues.put(arg, value);
@@ -45,7 +45,7 @@ public class ArgumentsCommand implements DebugCommand {
             }
             return null;
         } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-            System.out.println("Erreur d'accès aux arguments: " + e.getMessage());
+            System.out.println("Erreur d'acces aux arguments: " + e.getMessage());
             return null;
         }
     }

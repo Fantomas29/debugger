@@ -23,16 +23,20 @@ public class ScriptableDebugger {
     private LocatableEvent currentEvent;
     private AtomicBoolean waitingForCommand;
     private volatile boolean isDisposed = false;
+    private boolean programFinished = false;
 
+    // Constructeur pour initialiser le scanner et l'état d'attente de commande
     public ScriptableDebugger() {
         this.scanner = new Scanner(System.in);
         this.waitingForCommand = new AtomicBoolean(false);
     }
 
+    // Définir la ligne de point d'arrêt initiale
     public void setInitialBreakpoint(int line) {
         this.initialBreakpointLine = line;
     }
 
+    // Libérer les ressources et arrêter la machine virtuelle et le processus
     public void dispose() {
         isDisposed = true;
         if (vm != null) {
@@ -43,6 +47,7 @@ public class ScriptableDebugger {
         }
     }
 
+    // Attacher le débogueur à une classe spécifique
     public void attachTo(Class<?> debugClass) throws Exception {
         this.debugClass = debugClass;
         if (stepBackManager != null) {
@@ -52,9 +57,15 @@ public class ScriptableDebugger {
         eventLoop();
     }
 
+    // Exécuter une commande GUI
     public void executeGuiCommand(String command) {
+        if (programFinished) {
+            System.out.println("Le programme est terminé. Veuillez redémarrer le débogueur.");
+            return;
+        }
+
         if (currentEvent != null && waitingForCommand.get()) {
-            System.out.println("\n> Executing command: " + command);
+            System.out.println("\n> Exécution de la commande : " + command);
 
             if (command.equals("quit")) {
                 dispose();
@@ -63,7 +74,7 @@ public class ScriptableDebugger {
 
             try {
                 if (!commandManager.isValidCommand(command)) {
-                    System.out.println("Unknown command. Available commands: " +
+                    System.out.println("Commande inconnue. Commandes disponibles : " +
                             commandManager.getAvailableCommands());
                     return;
                 }
@@ -74,40 +85,43 @@ public class ScriptableDebugger {
                     vm.resume();
                 }
             } catch (Exception e) {
-                System.out.println("Error executing command: " + e.getMessage());
+                System.out.println("Erreur lors de l'exécution de la commande : " + e.getMessage());
             }
             System.out.println("----------------------------------------");
         }
     }
 
+    // Redémarrer la machine virtuelle
     public void restartVM() {
-        // Exécute le restart dans un nouveau thread pour ne pas bloquer l'interface
+        programFinished = false;
+        // Exécute le redémarrage dans un nouveau thread pour ne pas bloquer l'interface
         new Thread(() -> {
             try {
-                System.out.println("[Debug-VM] Starting VM restart");
+                System.out.println("[Debug-VM] Démarrage du redémarrage de la VM");
                 if (vm != null) {
-                    System.out.println("[Debug-VM] Disposing old VM");
+                    System.out.println("[Debug-VM] Libération de l'ancienne VM");
                     vm.dispose();
                 }
                 if (process != null) {
-                    System.out.println("[Debug-VM] Destroying old process");
+                    System.out.println("[Debug-VM] Destruction de l'ancien processus");
                     process.destroy();
                 }
 
-                System.out.println("[Debug-VM] Creating new debugee");
+                System.out.println("[Debug-VM] Création d'un nouveau débogué");
                 startDebugee();
                 Thread.sleep(100);
-                System.out.println("[Debug-VM] Starting event loop");
+                System.out.println("[Debug-VM] Démarrage de la boucle d'événements");
                 System.out.println("----------------------------------------");
                 eventLoop();
-                System.out.println("[Debug-VM] Restart complete");
+                System.out.println("[Debug-VM] Redémarrage terminé");
             } catch (Exception e) {
-                System.out.println("[Debug-VM] Error restarting VM: " + e.getMessage());
+                System.out.println("[Debug-VM] Erreur lors du redémarrage de la VM : " + e.getMessage());
                 e.printStackTrace();
             }
         }).start();
     }
 
+    // Démarrer le processus de débogage
     private void startDebugee() throws Exception {
         LaunchingConnector connector = Bootstrap.virtualMachineManager().defaultConnector();
         Map<String, Connector.Argument> arguments = connector.defaultArguments();
@@ -125,6 +139,7 @@ public class ScriptableDebugger {
         classPrepareRequest.enable();
     }
 
+    // Définir un point d'arrêt pour revenir en arrière
     private void setBreakPointStepBack(Class<?> debugClass) {
         try {
             StepBackManager.LocationInfo previousLocation = stepBackManager.getPreviousLocation();
@@ -141,10 +156,11 @@ public class ScriptableDebugger {
                 }
             }
         } catch (Exception e) {
-            System.out.println("[Debug] Error setting step back breakpoint: " + e.getMessage());
+            System.out.println("[Debug] Erreur lors de la définition du point d'arrêt pour revenir en arrière : " + e.getMessage());
         }
     }
 
+    // Boucle d'événements pour gérer les événements de débogage
     private void eventLoop() throws Exception {
         EventQueue eventQueue = vm.eventQueue();
         boolean connected = true;
@@ -162,8 +178,16 @@ public class ScriptableDebugger {
                 } else if (event instanceof StepEvent) {
                     shouldResume = false;
                     handleStepEvent((StepEvent) event);
-                } else if (event instanceof VMDeathEvent || event instanceof VMDisconnectEvent) {
+                } else if (event instanceof VMDeathEvent) {
                     connected = false;
+                    programFinished = true;
+                    System.out.println("Programme terminé.");
+                    clearStepBack();
+                } else if (event instanceof VMDisconnectEvent) {
+                    connected = false;
+                    if (!programFinished) {
+                        System.out.println("Déconnexion de la VM.");
+                    }
                 }
             }
 
@@ -173,6 +197,14 @@ public class ScriptableDebugger {
         }
     }
 
+    // Effacer l'historique de retour en arrière
+    private void clearStepBack() {
+        if (stepBackManager != null) {
+            stepBackManager.clearHistory();
+        }
+    }
+
+    // Gérer l'événement de préparation de la classe
     private void handleClassPrepareEvent(ClassPrepareEvent event) throws Exception {
         ClassType classType = (ClassType) event.referenceType();
         try {
@@ -183,11 +215,12 @@ public class ScriptableDebugger {
                 bpReq.enable();
             }
         } catch (Exception e) {
-            System.out.println("[Debug] Error setting breakpoint: " + e.getMessage());
+            System.out.println("[Debug] Erreur lors de la définition du point d'arrêt : " + e.getMessage());
             throw e;
         }
     }
 
+    // Gérer l'événement de point d'arrêt
     private void handleBreakpointEvent(BreakpointEvent event) {
         displayLocation(event);
         if (stepBackManager.isReplaying) {
@@ -198,6 +231,7 @@ public class ScriptableDebugger {
         waitForGuiCommand();
     }
 
+    // Gérer l'événement de pas à pas
     private void handleStepEvent(StepEvent event) {
         displayLocation(event);
         currentEvent = event;
@@ -205,6 +239,7 @@ public class ScriptableDebugger {
         waitForGuiCommand();
     }
 
+    // Afficher l'emplacement de l'événement
     private void displayLocation(LocatableEvent event) {
         Location location = event.location();
         System.out.printf("%s.%s():%d%n",
@@ -213,6 +248,7 @@ public class ScriptableDebugger {
                 location.lineNumber());
     }
 
+    // Attendre une commande GUI
     private void waitForGuiCommand() {
         while (waitingForCommand.get() && !isDisposed) {
             try {

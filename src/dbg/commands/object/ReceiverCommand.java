@@ -28,13 +28,13 @@ public class ReceiverCommand implements DebugCommand {
 
                 System.out.println("=== Receveur (this) ===");
                 System.out.println("Type: " + thisObject.referenceType().name());
-                System.out.println("Identité: " + thisObject.uniqueID());
+                System.out.println("Identite: " + thisObject.uniqueID());
 
                 return thisObject;
             }
             return null;
         } catch (IncompatibleThreadStateException e) {
-            System.out.println("Erreur d'accès au receveur: " + e.getMessage());
+            System.out.println("Erreur d'acces au receveur: " + e.getMessage());
             return null;
         }
     }

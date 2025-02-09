@@ -35,7 +35,7 @@ public class StepBackManager {
         }
 
         public boolean isMainClass() {
-            return className.contains("JDISimpleDebuggee");
+            return className.contains("TestDebugger");
         }
     }
 
@@ -69,6 +69,7 @@ public class StepBackManager {
         }
     }
 
+    // Déterminer le type de l'étape (STEP ou STEP_OVER)
     private String determineStepType(LocatableEvent event) {
         if (event.request() instanceof StepRequest) {
             StepRequest stepRequest = (StepRequest) event.request();
@@ -88,6 +89,8 @@ public class StepBackManager {
         return null;
     }
 
+    // Revenir en arrière d'une étape
+    // (définir un point d'arrêt à la position précédente et redémarrer la VM)
     public void stepBack() {
 
         if (historyPosition <= 0) {

@@ -38,7 +38,7 @@ public class BreakOnceCommand implements DebugCommand {
                         // Vérifier les breakpoints existants
                         for (BreakpointRequest existingBp : vm.eventRequestManager().breakpointRequests()) {
                             if (existingBp.location().equals(location)) {
-                                System.out.printf("Breakpoint déjà existant dans %s à la ligne %d%n",
+                                System.out.printf("Breakpoint deja existant dans %s a la ligne %d%n",
                                         refType.name(), lineNumber);
                                 return existingBp;
                             }
@@ -52,16 +52,16 @@ public class BreakOnceCommand implements DebugCommand {
                         bpReq.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
                         bpReq.enable();
 
-                        System.out.printf("Breakpoint unique ajouté dans %s à la ligne %d%n",
+                        System.out.printf("Breakpoint unique ajoute dans %s a la ligne %d%n",
                                 refType.name(), lineNumber);
                         return bpReq;
                     }
                 }
             }
-            System.out.println("Impossible de trouver la classe ou la ligne spécifiée");
+            System.out.println("Impossible de trouver la classe ou la ligne specifiee (verifier le nom du fichier fourni avec le package)");
             return null;
         } catch (AbsentInformationException e) {
-            System.out.println("Impossible d'accéder aux informations de débogage: " + e.getMessage());
+            System.out.println("Impossible d'acceder aux informations de débogage: " + e.getMessage());
             return null;
         }
     }

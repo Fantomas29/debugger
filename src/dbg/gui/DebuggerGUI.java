@@ -44,39 +44,185 @@ public class DebuggerGUI extends JFrame {
     }
 
     private void createCommandButtons() {
-        // Commandes de contrôle
-        addCommandButton("Step", "step");
-        addCommandButton("Step Over", "step-over");
-        addCommandButton("Continue", "continue");
-        addCommandButton("Back", "back");
+        JPanel controlPanel = new JPanel(new FlowLayout());
+        JPanel breakpointPanel = new JPanel(new FlowLayout());
+        JPanel infoPanel = new JPanel(new FlowLayout());
 
-        // Commandes d'information
-        addCommandButton("Frame", "frame");
-        addCommandButton("Stack", "stack");
-        addCommandButton("Method", "method");
-        addCommandButton("Temporaries", "temporaries");
+        // Panel du haut pour les contrôles principaux
+        addCommandButton(controlPanel, "Step", "step");
+        addCommandButton(controlPanel, "Step Over", "step-over");
+        addCommandButton(controlPanel, "Continue", "continue");
+        addCommandButton(controlPanel, "Back", "back");
 
-        // Commandes d'objet
-        addCommandButton("Receiver", "receiver");
-        addCommandButton("Sender", "sender");
-        addCommandButton("Arguments", "arguments");
-        addCommandButton("Receiver Variables", "receiver-variables");
+        // Panel du milieu pour les breakpoints
+        addBreakpointButton(breakpointPanel, "Break", "break");
+        addBreakpointButton(breakpointPanel, "Break Once", "break-once");
+        addBreakpointButton(breakpointPanel, "Break on Count", "break-on-count");
+        addBreakpointButton(breakpointPanel, "Break Before Method", "break-before-method");
+        addCommandButton(breakpointPanel, "List Breakpoints", "breakpoints");
 
-        // Commandes de breakpoint
-        addCommandButton("Breakpoints", "breakpoints");
+        // Panel du bas pour les infos
+        addCommandButton(infoPanel, "Frame", "frame");
+        addCommandButton(infoPanel, "Stack", "stack");
+        addCommandButton(infoPanel, "Method", "method");
+        addCommandButton(infoPanel, "Temporaries", "temporaries");
+        addCommandButton(infoPanel, "Receiver", "receiver");
+        addCommandButton(infoPanel, "Sender", "sender");
+        addCommandButton(infoPanel, "Arguments", "arguments");
+        addCommandButton(infoPanel, "Receiver Variables", "receiver-variables");
+
+        // Organisation verticale des panels
+        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        buttonPanel.add(controlPanel);
+        buttonPanel.add(breakpointPanel);
+        buttonPanel.add(infoPanel);
     }
 
-    private void addCommandButton(String label, String command) {
+    // Ajoute un bouton de commande avec le label et la commande associée
+    private void addCommandButton(JPanel panel, String label, String command) {
         JButton button = new JButton(label);
         button.addActionListener(e -> {
             if (debugger != null) {
-                outputArea.append("\n"); // Ajoute une ligne vide pour la lisibilité
+                outputArea.append("\n");
                 debugger.executeGuiCommand(command);
             }
         });
-        buttonPanel.add(button);
+        panel.add(button);
     }
 
+    // Ajoute un bouton de breakpoint avec le label et la commande associée
+    private void addBreakpointButton(JPanel panel, String label, String command) {
+        JButton button = new JButton(label);
+        button.addActionListener(e -> {
+            if (debugger != null) {
+                switch(command) {
+                    case "break":
+                    case "break-once":
+                        showBreakpointDialog(command);
+                        break;
+                    case "break-on-count":
+                        showBreakOnCountDialog();
+                        break;
+                    case "break-before-method":
+                        showBreakBeforeMethodDialog();
+                        break;
+                }
+            }
+        });
+        panel.add(button);
+    }
+
+    // Affiche une boîte de dialogue pour définir un breakpoint
+    private void showBreakpointDialog(String command) {
+        JDialog dialog = new JDialog(this, "Set Breakpoint", true);
+        dialog.setLayout(new GridLayout(3, 2, 5, 5));
+
+        JTextField fileField = new JTextField("core.TestDebugger.java");
+        JTextField lineField = new JTextField();
+
+        dialog.add(new JLabel("File:"));
+        dialog.add(fileField);
+        dialog.add(new JLabel("Line:"));
+        dialog.add(lineField);
+
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> {
+            try {
+                int line = Integer.parseInt(lineField.getText());
+                String cmd = String.format("%s %s %d", command, fileField.getText(), line);
+                debugger.executeGuiCommand(cmd);
+                dialog.dispose();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Please enter a valid line number");
+            }
+        });
+
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.add(okButton);
+        dialog.add(cancelButton);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    // Affiche une boîte de dialogue pour définir un breakpoint sur un compteur
+    private void showBreakOnCountDialog() {
+        JDialog dialog = new JDialog(this, "Set Break on Count", true);
+        dialog.setLayout(new GridLayout(4, 2, 5, 5));
+
+        JTextField fileField = new JTextField("core.TestDebugger.java");
+        JTextField lineField = new JTextField();
+        JTextField countField = new JTextField();
+
+        dialog.add(new JLabel("File:"));
+        dialog.add(fileField);
+        dialog.add(new JLabel("Line:"));
+        dialog.add(lineField);
+        dialog.add(new JLabel("Count:"));
+        dialog.add(countField);
+
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> {
+            try {
+                int line = Integer.parseInt(lineField.getText());
+                int count = Integer.parseInt(countField.getText());
+                String cmd = String.format("break-on-count %s %d %d",
+                        fileField.getText(), line, count);
+                debugger.executeGuiCommand(cmd);
+                dialog.dispose();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Please enter valid numbers");
+            }
+        });
+
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.add(okButton);
+        dialog.add(cancelButton);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    // Affiche une boîte de dialogue pour définir un breakpoint avant une méthode
+    private void showBreakBeforeMethodDialog() {
+        JDialog dialog = new JDialog(this, "Break Before Method", true);
+        dialog.setLayout(new GridLayout(2, 2, 5, 5));
+
+        JTextField methodField = new JTextField();
+
+        dialog.add(new JLabel("Method name:"));
+        dialog.add(methodField);
+
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> {
+            String method = methodField.getText().trim();
+            if (!method.isEmpty()) {
+                String cmd = String.format("break-before-method %s", method);
+                debugger.executeGuiCommand(cmd);
+                dialog.dispose();
+            } else {
+                JOptionPane.showMessageDialog(dialog, "Please enter a method name");
+            }
+        });
+
+        JButton cancelButton = new JButton("Cancel");
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        dialog.add(okButton);
+        dialog.add(cancelButton);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    // Redirige la sortie standard vers la zone de texte
     private void redirectSystemOut() {
         // Redirection de la sortie standard vers la zone de texte
         PrintStream printStream = new PrintStream(new CustomOutputStream(outputArea));
@@ -84,6 +230,7 @@ public class DebuggerGUI extends JFrame {
         System.setErr(printStream);
     }
 
+    // Initialise le debugger
     private void setupDebugger() {
         debugger = new ScriptableDebugger();
 
@@ -98,6 +245,7 @@ public class DebuggerGUI extends JFrame {
         });
     }
 
+    // Démarre le debugger avec la classe spécifiée
     public void startDebugging(Class<?> debugClass) {
         // Démarre le debugger dans un thread séparé pour ne pas bloquer l'interface
         new Thread(() -> {

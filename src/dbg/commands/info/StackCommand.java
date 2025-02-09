@@ -32,7 +32,7 @@ public class StackCommand implements DebugCommand {
                 Location location = frame.location();
                 Method method = location.method();
 
-                // Affichage simplifié : juste la classe, la méthode et la ligne
+                // Affichage : la classe, la méthode et la ligne
                 System.out.printf("%d: %s.%s() - ligne %d%n",
                         i,
                         location.declaringType().name(),
@@ -41,7 +41,7 @@ public class StackCommand implements DebugCommand {
             }
             return stack;
         } catch (IncompatibleThreadStateException e) {
-            System.out.println("Erreur d'accès à la pile: " + e.getMessage());
+            System.out.println("Erreur d'acces a la pile: " + e.getMessage());
             return null;
         }
     }

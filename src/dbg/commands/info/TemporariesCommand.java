@@ -36,7 +36,7 @@ public class TemporariesCommand implements DebugCommand {
             }
             return null;
         } catch (IncompatibleThreadStateException | AbsentInformationException e) {
-            System.out.println("Impossible d'accéder aux variables temporaires: " + e.getMessage());
+            System.out.println("Impossible d'acceder aux variables temporaires: " + e.getMessage());
             return null;
         }
     }

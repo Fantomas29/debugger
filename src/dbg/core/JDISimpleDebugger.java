@@ -12,7 +12,7 @@ public class JDISimpleDebugger {
                 DebuggerGUI gui = new DebuggerGUI();
                 gui.setVisible(true);
                 // Démarre le debugger avec la classe de test
-                gui.startDebugging(JDISimpleDebuggee.class);
+                gui.startDebugging(TestDebugger.class);
             } catch (Exception e) {
                 System.err.println("Erreur lors du démarrage du debugger: " + e.getMessage());
                 e.printStackTrace();

@@ -21,12 +21,12 @@ public class MethodCommand implements DebugCommand {
                 StackFrame frame = thread.frame(0);
                 Method method = frame.location().method();
 
-                System.out.println("=== Méthode courante ===");
+                System.out.println("=== Methode courante ===");
                 System.out.println("Nom: " + method.name());
                 System.out.println("Signature: " + method.signature());
-                System.out.println("Classe déclarante: " + method.declaringType().name());
+                System.out.println("Classe declarante: " + method.declaringType().name());
                 System.out.println("Est statique: " + method.isStatic());
-                System.out.println("Visibilité: " + getVisibility(method));
+                System.out.println("Visibilite: " + getVisibility(method));
 
                 return method;
             }

@@ -48,7 +48,7 @@ public class ReceiverVariablesCommand implements DebugCommand {
             }
             return null;
         } catch (IncompatibleThreadStateException e) {
-            System.out.println("Erreur d'accès aux variables: " + e.getMessage());
+            System.out.println("Erreur d'acces aux variables: " + e.getMessage());
             return null;
         }
     }

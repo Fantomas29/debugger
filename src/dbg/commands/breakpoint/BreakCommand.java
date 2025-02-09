@@ -28,6 +28,7 @@ public class BreakCommand implements DebugCommand {
                 targetClass = "dbg." + targetClass;
             }
 
+            // Itérer sur toutes les classes chargées dans la VM
             for (ReferenceType refType : vm.allClasses()) {
                 if (refType.name().equalsIgnoreCase(targetClass)) {
                     List<Location> locations = refType.locationsOfLine(lineNumber);
@@ -37,22 +38,23 @@ public class BreakCommand implements DebugCommand {
                         // Vérifier si un breakpoint existe déjà à cet endroit
                         for (BreakpointRequest existingBp : vm.eventRequestManager().breakpointRequests()) {
                             if (existingBp.location().equals(location)) {
-                                System.out.printf("Breakpoint déjà existant dans %s à la ligne %d%n",
+                                System.out.printf("Breakpoint deja existant dans %s a la ligne %d%n",
                                         refType.name(), lineNumber);
                                 return existingBp;
                             }
                         }
 
+                        // Créer une requête de point d'arrêt à l'emplacement spécifié
                         BreakpointRequest bpReq = vm.eventRequestManager()
                                 .createBreakpointRequest(location);
                         bpReq.enable();
-                        System.out.printf("Breakpoint ajouté dans %s à la ligne %d%n",
+                        System.out.printf("Breakpoint ajoute dans %s a la ligne %d%n",
                                 refType.name(), lineNumber);
                         return bpReq;
                     }
                 }
             }
-            System.out.println("Impossible de trouver la classe ou la ligne spécifiée");
+            System.out.println("Impossible de trouver la classe ou la ligne specifiee (verifier le nom du fichier fourni avec le package)");
             return null;
         } catch (AbsentInformationException e) {
             System.out.println("Erreur : " + e.getMessage());

@@ -26,7 +26,7 @@ public class FrameCommand implements DebugCommand {
 
                 // Affiche les informations de la frame
                 System.out.println("Frame courante:");
-                System.out.println("  Méthode: " + location.method());
+                System.out.println("  Methode: " + location.method());
                 System.out.println("  Classe: " + location.declaringType().name());
                 System.out.println("  Fichier: " + location.sourcePath());
                 System.out.println("  Ligne: " + location.lineNumber());

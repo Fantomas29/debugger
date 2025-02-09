@@ -25,20 +25,20 @@ public class SenderCommand implements DebugCommand {
                 System.out.println("=== Appelant (sender) ===");
                 if (sender != null) {
                     System.out.println("Type: " + sender.referenceType().name());
-                    System.out.println("Méthode appelante: " + location.method().name());
+                    System.out.println("Methode appelante: " + location.method().name());
                     System.out.println("Ligne: " + location.lineNumber());
                     return sender;
                 } else {
-                    System.out.println("Appelé depuis un contexte statique");
+                    System.out.println("Appele depuis un contexte statique");
                     System.out.println("Classe: " + location.declaringType().name());
-                    System.out.println("Méthode: " + location.method().name());
+                    System.out.println("Methode: " + location.method().name());
                     return location;
                 }
             }
             System.out.println("Pas d'appelant (frame racine)");
             return null;
         } catch (IncompatibleThreadStateException e) {
-            System.out.println("Erreur d'accès à l'appelant: " + e.getMessage());
+            System.out.println("Erreur d'acces à l'appelant: " + e.getMessage());
             return null;
         }
     }

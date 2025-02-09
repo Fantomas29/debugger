@@ -64,7 +64,7 @@ public class CommandManager {
         String[] parts = commandLine.trim().split("\\s+");
         String command = parts[0].toLowerCase();
 
-        // Record step for all events except back command
+        // Enregistrer l'étape actuelle avant d'exécuter la commande
         if (!command.equals("back")) {
             stepBackManager.recordStep(event);
         }
